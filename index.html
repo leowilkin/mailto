@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Email redirect</title>
+  <style>
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{max-width:520px;text-align:center}
+    p{margin:0 0 12px}
+    code{background:#f3f3f3;padding:4px 8px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="app">
+      <p>Preparing redirect…</p>
+      <p id="info" style="font-size:90%"></p>
+      <p style="font-size:85%">Usage: <code>/name</code> or <code>?to=name&amp;domain=example.com</code></p>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    // Get either the first path-segment (e.g. /leo -> "leo") or a query param ?to=leo
+    const rawPath = decodeURIComponent(location.pathname || '/');
+    // Remove leading/trailing slashes and any additional path parts (we only use the first segment)
+    const firstSegment = rawPath.replace(/^\/+/,'').split('/')[0] || '';
+
+    const params = new URLSearchParams(location.search);
+    let local = params.get('to') || params.get('email') || firstSegment;
+
+    const infoEl = document.getElementById('info');
+
+    if(!local){
+      infoEl.textContent = 'No recipient provided. Use /name or ?to=name';
+      return;
+    }
+
+    // Basic sanitisation: allow letters, numbers and a small set of filename-safe characters
+    if(!/^[A-Za-z0-9._+\-]+$/.test(local)){
+      infoEl.textContent = 'Invalid recipient characters.';
+      return;
+    }
+
+    // Domain: default to hackclub.com unless user supplies domain param
+    let domain = params.get('domain') || 'hackclub.com';
+    // Allow simple domain pattern (e.g. hackclub.com or sub.domain.org)
+    if(!/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(domain)){
+      domain = 'hackclub.com';
+    }
+
+    // Optional subject/body
+    const subject = params.get('subject') || '';
+    const body = params.get('body') || '';
+
+    // Build mailto URL
+    const mailParams = new URLSearchParams();
+    if(subject) mailParams.set('subject', subject);
+    if(body) mailParams.set('body', body);
+
+    const mailto = 'mailto:' + local + '@' + domain + (mailParams.toString() ? '?' + mailParams.toString() : '');
+
+    // Update UI text safely
+    infoEl.textContent = 'Opening email to ' + local + '@' + domain + '...';
+
+    // Create a hidden anchor and click it to trigger the mail client
+    const a = document.createElement('a');
+    a.href = mailto;
+    a.rel = 'noopener noreferrer';
+    // Append and click
+    document.body.appendChild(a);
+    // small timeout to ensure DOM updates show to users before redirect
+    setTimeout(() => { a.click(); }, 50);
+  })();
+  </script>
+</body>
+</html>
